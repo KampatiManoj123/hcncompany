@@ -1,0 +1,442 @@
+{% extends 'admin/base.html' %}
+{% block title %}Billing - HCN Admin{% endblock %}
+{% block page_title %}Billing & Receipts{% endblock %}
+{% block extra_css %}
+<style>
+.billing-layout { display: grid; grid-template-columns: 1fr 400px; gap: 24px; }
+.product-search-results { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1.5px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 100; max-height: 260px; overflow-y: auto; }
+.product-search-results .result-item { padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+.product-search-results .result-item:hover { background: var(--blue-light); }
+.product-search-results .result-item:last-child { border-bottom: none; }
+.bill-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+.bill-table th, .bill-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+.bill-table th { background: var(--gray-light); font-weight: 700; }
+/* Receipt styles */
+.receipt { font-family: 'Courier New', monospace; background: #fff; padding: 24px; border: 1px solid #ddd; border-radius: 8px; max-width: 400px; margin: 0 auto; }
+.receipt-header { text-align: center; border-bottom: 2px dashed #333; padding-bottom: 12px; margin-bottom: 12px; }
+.receipt-logo { font-size: 1.4rem; font-weight: 900; color: #1a56db; }
+.receipt-item { display: flex; justify-content: space-between; padding: 3px 0; font-size: 0.85rem; }
+.receipt-divider { border-top: 1px dashed #333; margin: 8px 0; }
+.receipt-total { display: flex; justify-content: space-between; font-weight: 700; font-size: 1rem; padding: 4px 0; }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="billing-layout">
+  <!-- New Bill Form -->
+  <div>
+    <div class="card" style="margin-bottom:24px;">
+      <div class="card-header"><h3><i class="fas fa-receipt" style="color:var(--blue);"></i> Create New Bill</h3></div>
+      <div style="padding:24px;">
+        <!-- Customer Info -->
+        <h4 style="margin-bottom:12px;font-size:0.9rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px;">Customer Details</h4>
+        <div class="form-grid" style="margin-bottom:20px;">
+          <div class="form-group">
+            <label>Customer Name</label>
+            <input type="text" id="bill-customer-name" placeholder="Walk-in Customer">
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="text" id="bill-customer-phone" placeholder="+91 98765 43210">
+          </div>
+        </div>
+        
+        <!-- Product Search -->
+        <h4 style="margin-bottom:12px;font-size:0.9rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px;">Add Products</h4>
+        <div style="display:flex;gap:10px;margin-bottom:12px;">
+          <div style="flex:1;position:relative;">
+            <input type="text" id="billProductSearch" placeholder="Search and add products..." 
+              style="width:100%;padding:12px 16px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;"
+              oninput="searchBillProducts(this.value)" autocomplete="off">
+            <div id="billSearchResults" class="product-search-results" style="display:none;"></div>
+          </div>
+          <div style="position:relative;">
+            <input type="text" id="barcodeInput" placeholder="Scan barcode..." 
+              style="width:180px;padding:12px 16px;border:1.5px solid #22c55e;border-radius:8px;font-size:0.9rem;background:#f0fdf4;"
+              onkeydown="if(event.key==='Enter')scanBarcode(this.value)" autocomplete="off">
+            <i class="fas fa-barcode" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#22c55e;pointer-events:none;"></i>
+          </div>
+        </div>
+        <!-- Barcode Result Card -->
+        <div id="barcodeResultCard" style="display:none;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <img id="bcImg" src="" style="width:52px;height:52px;object-fit:contain;border-radius:6px;background:#fff;">
+            <div style="flex:1;">
+              <div id="bcName" style="font-weight:700;font-size:0.95rem;"></div>
+              <div id="bcPrice" style="color:var(--blue);font-weight:700;"></div>
+              <div id="bcSku" style="font-size:0.78rem;color:#6b7280;"></div>
+            </div>
+            <button onclick="addBarcodeItem()" style="background:#22c55e;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;"><i class="fas fa-plus"></i> Add</button>
+          </div>
+        </div>
+        <div id="barcodeNotFound" style="display:none;background:#fff1f2;border:1.5px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:12px;color:#b91c1c;font-size:0.85rem;"><i class="fas fa-exclamation-circle"></i> No product found for this barcode/SKU.</div>
+        
+        <!-- Bill Items Table -->
+        <table class="bill-table">
+          <thead>
+            <tr><th>#</th><th>Product</th><th>Price</th><th>Qty</th><th>Total</th><th></th></tr>
+          </thead>
+          <tbody id="billItemsBody">
+            <tr id="emptyBillRow"><td colspan="6" style="text-align:center;padding:24px;color:#999;">No items added yet</td></tr>
+          </tbody>
+        </table>
+        
+        <!-- Discount -->
+        <div class="form-grid" style="margin-top:8px;">
+          <div class="form-group">
+            <label>Discount (₹)</label>
+            <input type="number" id="bill-discount" value="0" min="0" step="0.01" oninput="updateBillTotal()">
+          </div>
+          <div class="form-group">
+            <label>GST Rate</label>
+            <select id="bill-gst" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;" onchange="updateBillTotal()">
+              <option value="0">No GST (0%)</option>
+              <option value="5">GST 5%</option>
+              <option value="10">GST 10%</option>
+              <option value="18" selected>GST 18%</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid" style="margin-top:12px;">
+          <div class="form-group">
+            <label>Payment Method</label>
+            <select id="bill-payment" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;">
+              <option>Cash</option>
+              <option>UPI</option>
+              <option>Card</option>
+              <option>Bank Transfer</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Totals Summary -->
+        <div style="background:var(--gray-light);border-radius:10px;padding:16px;margin-top:16px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.9rem;"><span>Subtotal</span><span id="bill-subtotal">₹0.00</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.9rem;"><span>Discount</span><span id="bill-discount-display" style="color:var(--green);">-₹0.00</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.9rem;"><span id="gst-label">GST (18%)</span><span id="bill-tax">₹0.00</span></div>
+          <div style="display:flex;justify-content:space-between;font-weight:800;font-size:1.2rem;border-top:2px solid var(--border);padding-top:10px;margin-top:8px;"><span>TOTAL</span><span id="bill-total" style="color:var(--blue);">₹0.00</span></div>
+        </div>
+        
+        <button class="btn-primary" style="width:100%;padding:14px;font-size:1.05rem;margin-top:16px;" onclick="generateBill()">
+          <i class="fas fa-print"></i> Generate Bill & Receipt
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Recent Bills -->
+  <div>
+    <div class="card">
+      <div class="card-header"><h3><i class="fas fa-history" style="color:var(--orange);"></i> Recent Bills</h3></div>
+      <div id="recentBillsList" style="max-height:calc(100vh - 200px);overflow-y:auto;">
+        <div style="text-align:center;padding:40px;color:#999;">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Receipt Modal -->
+<div class="admin-modal-overlay" id="receiptModal">
+  <div class="admin-modal" style="max-width:480px;">
+    <div class="admin-modal-header">
+      <h3><i class="fas fa-receipt"></i> Receipt</h3>
+      <div style="display:flex;gap:8px;">
+        <button onclick="printReceipt()" class="btn-sm btn-blue"><i class="fas fa-print"></i> Print</button>
+        <button onclick="closeReceiptModal()" style="background:var(--gray-light);border:none;padding:6px 12px;border-radius:6px;cursor:pointer;"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div class="admin-modal-body" id="receiptContent"></div>
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+let barcodeFoundProduct = null;
+
+function scanBarcode(value) {
+  const v = value.trim();
+  if (!v) return;
+  barcodeFoundProduct = null;
+  document.getElementById('barcodeResultCard').style.display = 'none';
+  document.getElementById('barcodeNotFound').style.display = 'none';
+  
+  // Search by SKU match
+  const match = allProductsForBill.find(p => 
+    (p.sku && p.sku.toLowerCase() === v.toLowerCase()) ||
+    (p.name && p.name.toLowerCase().includes(v.toLowerCase()))
+  );
+  
+  if (match) {
+    barcodeFoundProduct = match;
+    document.getElementById('bcImg').src = match.image || '/static/images/logo.png';
+    document.getElementById('bcName').textContent = match.name;
+    document.getElementById('bcPrice').textContent = '₹' + match.price.toFixed(2);
+    document.getElementById('bcSku').textContent = 'SKU: ' + (match.sku || 'N/A') + ' | ' + (match.category || '');
+    document.getElementById('barcodeResultCard').style.display = 'block';
+  } else {
+    document.getElementById('barcodeNotFound').style.display = 'block';
+  }
+  document.getElementById('barcodeInput').value = '';
+}
+
+function addBarcodeItem() {
+  if (!barcodeFoundProduct) return;
+  const p = barcodeFoundProduct;
+  const id = p._id?.$oid || p._id;
+  addBillItem(id, p.name, p.price, p.image || '');
+  document.getElementById('barcodeResultCard').style.display = 'none';
+  barcodeFoundProduct = null;
+}
+
+let billItems = [];
+let allProductsForBill = [];
+let currentBill = null;
+
+async function loadBillProducts() {
+  try {
+    const res = await fetch('/api/products');
+    allProductsForBill = await res.json();
+  } catch(e) {}
+}
+
+function searchBillProducts(query) {
+  const resultsDiv = document.getElementById('billSearchResults');
+  if (!query.trim()) { resultsDiv.style.display = 'none'; return; }
+  const qLow = query.toLowerCase().trim();
+  const matches = allProductsForBill.filter(p => {
+    return qLow.split(/\s+/).some(word =>
+      p.name.toLowerCase().includes(word) ||
+      (p.sku || '').toLowerCase().includes(word)
+    );
+  }).slice(0, 8);
+  if (!matches.length) { resultsDiv.style.display = 'none'; return; }
+  resultsDiv.style.display = 'block';
+  resultsDiv.innerHTML = matches.map(p => {
+    const id = p._id.$oid || p._id;
+    return `<div class="result-item" onclick="addBillItem('${id}','${p.name.replace(/'/g,"\\'")}',${p.price},'${p.image||''}')">
+      <img src="${p.image||'/static/images/logo.png'}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f3f4f6;" onerror="this.src='/static/images/logo.png'">
+      <div>
+        <div style="font-weight:600;font-size:0.88rem;">${p.name}</div>
+        <div style="font-size:0.78rem;color:var(--blue);font-weight:700;">₹${p.price?.toFixed(2)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#billProductSearch') && !e.target.closest('#billSearchResults')) {
+    document.getElementById('billSearchResults').style.display = 'none';
+  }
+});
+
+function addBillItem(id, name, price, image) {
+  document.getElementById('billProductSearch').value = '';
+  document.getElementById('billSearchResults').style.display = 'none';
+  
+  const existing = billItems.find(i => i.id === id);
+  if (existing) { existing.qty++; }
+  else { billItems.push({ id, name, price, image, qty: 1 }); }
+  renderBillItems();
+}
+
+function removeBillItem(id) {
+  billItems = billItems.filter(i => i.id !== id);
+  renderBillItems();
+}
+
+function updateBillItemQty(id, qty) {
+  const item = billItems.find(i => i.id === id);
+  if (item) { item.qty = Math.max(1, parseInt(qty) || 1); renderBillItems(); }
+}
+
+function renderBillItems() {
+  const tbody = document.getElementById('billItemsBody');
+  if (!billItems.length) {
+    tbody.innerHTML = '<tr id="emptyBillRow"><td colspan="6" style="text-align:center;padding:24px;color:#999;">No items added yet</td></tr>';
+    updateBillTotal();
+    return;
+  }
+  tbody.innerHTML = billItems.map((item, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <img src="${item.image||'/static/images/logo.png'}" style="width:32px;height:32px;object-fit:contain;border-radius:4px;background:#f3f4f6;" onerror="this.src='/static/images/logo.png'">
+          <span style="font-size:0.88rem;font-weight:600;">${item.name}</span>
+        </div>
+      </td>
+      <td>₹${item.price.toFixed(2)}</td>
+      <td><input type="number" value="${item.qty}" min="1" style="width:60px;padding:4px 6px;border:1.5px solid var(--border);border-radius:6px;text-align:center;" onchange="updateBillItemQty('${item.id}',this.value)"></td>
+      <td><b>₹${(item.price*item.qty).toFixed(2)}</b></td>
+      <td><button onclick="removeBillItem('${item.id}')" style="color:#ef4444;background:none;font-size:0.9rem;"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  updateBillTotal();
+}
+
+function updateBillTotal() {
+  const subtotal = billItems.reduce((s, i) => s + i.price * i.qty, 0);
+  const discount = parseFloat(document.getElementById('bill-discount').value) || 0;
+  const gstRate = parseFloat(document.getElementById('bill-gst').value) || 0;
+  const taxable = Math.max(0, subtotal - discount);
+  const tax = taxable * (gstRate / 100);
+  const total = taxable + tax;
+  document.getElementById('bill-subtotal').textContent = '₹' + subtotal.toFixed(2);
+  document.getElementById('bill-discount-display').textContent = '-₹' + discount.toFixed(2);
+  document.getElementById('gst-label').textContent = 'GST (' + gstRate + '%)';
+  document.getElementById('bill-tax').textContent = '₹' + tax.toFixed(2);
+  document.getElementById('bill-total').textContent = '₹' + total.toFixed(2);
+}
+
+async function generateBill() {
+  if (!billItems.length) { showToast('Add at least one product', 'error'); return; }
+  
+  const subtotal = billItems.reduce((s, i) => s + i.price * i.qty, 0);
+  const discount = parseFloat(document.getElementById('bill-discount').value) || 0;
+  const tax = (subtotal - discount) * 0.18;
+  const total = (subtotal - discount) + tax;
+  
+  const gstRate = parseFloat(document.getElementById('bill-gst').value) || 0;
+  const billData = {
+    customer: {
+      name: document.getElementById('bill-customer-name').value || 'Walk-in Customer',
+      phone: document.getElementById('bill-customer-phone').value || '-'
+    },
+    items: billItems.map(i => ({ product_id: i.id, name: i.name, price: i.price, qty: i.qty })),
+    discount,
+    gst_rate: gstRate,
+    payment_method: document.getElementById('bill-payment').value
+  };
+  
+  try {
+    const res = await fetch('/api/billing', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(billData)
+    });
+    const bill = await res.json();
+    currentBill = bill;
+    showReceipt(bill);
+    billItems = [];
+    renderBillItems();
+    document.getElementById('bill-customer-name').value = '';
+    document.getElementById('bill-customer-phone').value = '';
+    document.getElementById('bill-discount').value = 0;
+    loadRecentBills();
+  } catch(e) { showToast('Failed to generate bill', 'error'); }
+}
+
+function showReceipt(bill) {
+  const date = new Date().toLocaleString('en-IN');
+  const items = (bill.items || []).map(i => `
+    <div class="receipt-item"><span>${i.name} × ${i.qty}</span><span>₹${(i.price*i.qty).toFixed(2)}</span></div>`).join('');
+  
+  document.getElementById('receiptContent').innerHTML = `
+    <div class="receipt" id="printableReceipt">
+      <div class="receipt-header">
+        <div class="receipt-logo">HCN</div>
+        <div style="font-size:0.78rem;color:#555;">Hygiene Care Novelty</div>
+        <div style="font-size:0.72rem;color:#888;">info@hcncare.com | +91 98765 43210</div>
+        <div style="font-size:0.72rem;color:#888;margin-top:4px;">Germ Free Environment</div>
+      </div>
+      <div style="font-size:0.8rem;margin-bottom:8px;">
+        <div><b>Bill No:</b> ${bill.bill_id}</div>
+        <div><b>Date:</b> ${date}</div>
+        <div><b>Customer:</b> ${bill.customer?.name || 'Walk-in'}</div>
+        <div><b>Phone:</b> ${bill.customer?.phone || '-'}</div>
+      </div>
+      <div class="receipt-divider"></div>
+      <div style="font-size:0.78rem;font-weight:700;display:flex;justify-content:space-between;padding:3px 0;">
+        <span>ITEM</span><span>AMOUNT</span>
+      </div>
+      <div class="receipt-divider"></div>
+      ${items}
+      <div class="receipt-divider"></div>
+      <div class="receipt-item"><span>Subtotal</span><span>₹${bill.subtotal?.toFixed(2)}</span></div>
+      ${bill.discount ? `<div class="receipt-item"><span>Discount</span><span style="color:green;">-₹${bill.discount?.toFixed(2)}</span></div>` : ''}
+      <div class="receipt-item"><span>GST (${bill.gst_rate !== undefined ? bill.gst_rate : 18}%)</span><span>₹${bill.tax?.toFixed(2)}</span></div>
+      <div class="receipt-divider"></div>
+      <div class="receipt-total"><span>TOTAL</span><span>₹${bill.total?.toFixed(2)}</span></div>
+      <div class="receipt-divider"></div>
+      <div style="text-align:center;font-size:0.75rem;color:#888;margin-top:8px;">
+        <div><b>Payment:</b> ${bill.payment_method}</div>
+        <div style="margin-top:6px;">Thank you for shopping with HCN!</div>
+        <div>Creating a Germ Free Environment</div>
+      </div>
+    </div>`;
+  
+  document.getElementById('receiptModal').classList.add('open');
+}
+
+function closeReceiptModal() {
+  document.getElementById('receiptModal').classList.remove('open');
+}
+
+function printReceipt() {
+  const content = document.getElementById('printableReceipt').innerHTML;
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>HCN Receipt</title>
+  <style>
+    body { font-family: 'Courier New', monospace; padding: 20px; max-width: 400px; margin: 0 auto; }
+    .receipt-item { display: flex; justify-content: space-between; padding: 2px 0; font-size: 0.85rem; }
+    .receipt-total { display: flex; justify-content: space-between; font-weight: bold; font-size: 1rem; }
+    .receipt-logo { font-size: 1.4rem; font-weight: 900; color: #1a56db; }
+    hr { border: none; border-top: 1px dashed #333; margin: 8px 0; }
+  </style></head><body>${content}</body></html>`);
+  win.document.close();
+  win.print();
+}
+
+async function loadRecentBills() {
+  try {
+    const res = await fetch('/api/billing');
+    const bills = await res.json();
+    const container = document.getElementById('recentBillsList');
+    if (!bills.length) {
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">No bills yet</div>';
+      return;
+    }
+    container.innerHTML = bills.slice(0, 20).map(b => {
+      const date = b.created_at?.$date ? new Date(b.created_at.$date).toLocaleString('en-IN') : '-';
+      return `<div style="padding:16px 20px;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="flex:1;cursor:pointer;" onclick='showReceipt(${JSON.stringify(b).replace(/'/g,"\\'")})'
+               onmouseover="this.style.color='var(--blue)'" onmouseout="this.style.color=''">
+            <div style="font-weight:700;font-size:0.9rem;color:var(--blue);">${b.bill_id}</div>
+            <div style="font-size:0.8rem;color:var(--text-muted);">${b.customer?.name || 'Walk-in'}</div>
+            <div style="font-size:0.75rem;color:#999;">${date}</div>
+          </div>
+          <div style="text-align:right;display:flex;align-items:center;gap:12px;">
+            <div>
+              <div style="font-weight:800;color:var(--text);">₹${b.total?.toFixed(2)}</div>
+              <div style="font-size:0.75rem;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:10px;">${b.payment_method}</div>
+            </div>
+            <button onclick="deleteBill('${b.bill_id}', this)" style="background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.8rem;" title="Delete Bill">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    }).join('');
+  } catch(e) {}
+}
+
+async function deleteBill(billId, btn) {
+  if (!confirm(`Delete bill ${billId}? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/api/billing/${billId}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('Bill deleted', 'success');
+      // Remove the bill row from DOM
+      btn.closest('div[style*="border-bottom"]').remove();
+    } else {
+      showToast('Failed to delete', 'error');
+    }
+  } catch(e) { showToast('Server error', 'error'); }
+}
+
+loadBillProducts();
+loadRecentBills();
+</script>
+{% endblock %}

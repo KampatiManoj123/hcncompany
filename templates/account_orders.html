@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block title %}My Orders - HCN{% endblock %}
+{% block content %}
+<div class="account-page">
+  <div class="account-sidebar">
+    <div class="account-user-info">
+      <div class="account-avatar"><i class="fas fa-user-circle"></i></div>
+      <h3>{{ current_user.name }}</h3>
+      <p>{{ current_user.email }}</p>
+    </div>
+    <nav class="account-nav">
+      <a href="/account"><i class="fas fa-home"></i> Dashboard</a>
+      <a href="/account/orders" class="active"><i class="fas fa-box"></i> My Orders</a>
+      <a href="/account/profile"><i class="fas fa-user-edit"></i> Edit Profile</a>
+      <a href="/logout" style="color:#ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    </nav>
+  </div>
+  <div class="account-main">
+    <h2>My Orders</h2>
+    <p style="color:#6b7280;margin-bottom:24px;">Track and manage all your orders.</p>
+    <div id="allOrdersList"><div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i></div></div>
+  </div>
+</div>
+
+<!-- Cancel Order Modal -->
+<div class="admin-modal-overlay" id="cancelModal" style="z-index:9999;">
+  <div class="admin-modal" style="max-width:460px;">
+    <div class="admin-modal-header">
+      <h3><i class="fas fa-times-circle" style="color:#ef4444;"></i> Cancel Order</h3>
+      <button onclick="closeCancelModal()" style="background:var(--gray-light);border:none;padding:6px 12px;border-radius:6px;cursor:pointer;"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin-bottom:16px;color:#374151;">Please select a reason for cancelling this order:</p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;" id="cancelReasons">
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;">
+          <input type="radio" name="cancelReason" value="Changed my mind"> Changed my mind
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;">
+          <input type="radio" name="cancelReason" value="Ordered by mistake"> Ordered by mistake
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;">
+          <input type="radio" name="cancelReason" value="Found better price elsewhere"> Found better price elsewhere
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;">
+          <input type="radio" name="cancelReason" value="Delivery time too long"> Delivery time too long
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;">
+          <input type="radio" name="cancelReason" value="Other"> Other (specify below)
+        </label>
+      </div>
+      <div id="otherReasonBox" style="display:none;margin-bottom:16px;">
+        <textarea id="otherReasonText" placeholder="Please describe your reason..." style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;resize:vertical;min-height:80px;"></textarea>
+      </div>
+      <div style="display:flex;gap:12px;">
+        <button onclick="closeCancelModal()" style="flex:1;padding:12px;border:1.5px solid var(--border);background:#fff;border-radius:8px;cursor:pointer;font-weight:600;">Keep Order</button>
+        <button onclick="submitCancel()" style="flex:1;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;"><i class="fas fa-times-circle"></i> Confirm Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+let cancelOrderId = null;
+
+document.querySelectorAll('input[name="cancelReason"]').forEach(r => {
+  r.addEventListener('change', () => {
+    document.getElementById('otherReasonBox').style.display = r.value === 'Other' ? 'block' : 'none';
+  });
+});
+
+function openCancelModal(orderId) {
+  cancelOrderId = orderId;
+  document.querySelectorAll('input[name="cancelReason"]').forEach(r => r.checked = false);
+  document.getElementById('otherReasonBox').style.display = 'none';
+  document.getElementById('otherReasonText').value = '';
+  document.getElementById('cancelModal').classList.add('open');
+}
+
+function closeCancelModal() {
+  document.getElementById('cancelModal').classList.remove('open');
+  cancelOrderId = null;
+}
+
+async function submitCancel() {
+  const selected = document.querySelector('input[name="cancelReason"]:checked');
+  if (!selected) { showToast('Please select a reason', 'error'); return; }
+  let reason = selected.value;
+  if (reason === 'Other') {
+    const other = document.getElementById('otherReasonText').value.trim();
+    if (!other) { showToast('Please describe your reason', 'error'); return; }
+    reason = other;
+  }
+  try {
+    const res = await fetch(`/api/user/orders/${cancelOrderId}/cancel`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ reason })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Cancellation request sent!', 'success');
+      closeCancelModal();
+      loadOrders();
+    } else {
+      showToast(data.error || 'Failed to cancel', 'error');
+    }
+  } catch(e) { showToast('Server error', 'error'); }
+}
+
+async function loadOrders() {
+  const res = await fetch('/api/user/orders');
+  const orders = await res.json();
+  const el = document.getElementById('allOrdersList');
+  if (!orders.length) {
+    el.innerHTML = '<div class="empty-state-box"><i class="fas fa-box-open fa-3x" style="color:#d1d5db;"></i><h3>No orders yet</h3><p>Looks like you haven\'t placed any orders.</p><a href="/products" class="btn-primary"><i class="fas fa-shopping-bag"></i> Shop Now</a></div>';
+    return;
+  }
+  el.innerHTML = orders.map(o => {
+    const canCancel = ['Pending', 'Processing'].includes(o.status);
+    const isCancelRequested = o.status === 'Cancel Requested';
+    return `
+    <div class="order-card">
+      <div class="order-card-header">
+        <div>
+          <b style="color:var(--blue);">${o.order_id}</b>
+          <span style="color:#6b7280;font-size:0.82rem;margin-left:12px;">${new Date(o.created_at?.$date||o.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</span>
+        </div>
+        <span class="status-pill ${(o.status||'').toLowerCase().replace(' ','-')}">${o.status}</span>
+      </div>
+      <div class="order-card-items">
+        ${(o.items||[]).map(i => `<div class="order-item-row"><img src="${i.image||'/static/images/logo.png'}" onerror="this.src='/static/images/logo.png'"><div><b>${i.name}</b><small>Qty: ${i.qty} × ₹${i.price}</small></div><span>₹${(i.qty*i.price).toFixed(2)}</span></div>`).join('')}
+      </div>
+      ${isCancelRequested && o.cancel_reason ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;margin:0 0 8px;font-size:0.84rem;color:#92400e;"><i class="fas fa-clock"></i> Cancellation requested: <b>${o.cancel_reason}</b> — Awaiting admin approval</div>` : ''}
+      <div class="order-card-footer" style="justify-content:space-between;">
+        <span>Payment: <b>${o.payment_method||'COD'}</b></span>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span>Total: <b style="color:var(--blue);font-size:1.1rem;">₹${(o.total||0).toFixed(2)}</b></span>
+          ${canCancel ? `<button onclick="openCancelModal('${o.order_id}')" style="background:#fff;border:1.5px solid #ef4444;color:#ef4444;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;"><i class="fas fa-times"></i> Cancel</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+loadOrders();
+</script>
+{% endblock %}

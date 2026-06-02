@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}HCN - Hygiene Care Novelty{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+{% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-inner">
+    <span><i class="fas fa-leaf"></i> Creating a Germ Free Environment</span>
+    <div class="topbar-right">
+      <a href="mailto:info@hcncare.com"><i class="fas fa-envelope"></i> info@hcncare.com</a>
+      <a href="tel:+919876543210"><i class="fas fa-phone"></i> +91 98765 43210</a>
+      <a href="/become-a-distributor" class="become-dist"><i class="fas fa-store"></i> Become a Distributor</a>
+    </div>
+  </div>
+</div>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="/" class="brand">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="HCN Logo">
+    </a>
+    <ul class="nav-links">
+      <li><a href="/" class="{% if request.path=='/' %}active{% endif %}">Home</a></li>
+      <li><a href="/about" class="{% if request.path=='/about' %}active{% endif %}">About Us</a></li>
+      <li class="has-dropdown">
+        <a href="/products">Products <i class="fas fa-chevron-down"></i></a>
+        <div class="dropdown">
+          <a href="/products?category=Dish Care"><i class="fas fa-utensils"></i> Dish Care</a>
+          <a href="/products?category=Kitchen Care"><i class="fas fa-fire"></i> Kitchen Care</a>
+          <a href="/products?category=Laundry Care"><i class="fas fa-tshirt"></i> Laundry Care</a>
+          <a href="/products?category=Bathroom Care"><i class="fas fa-bath"></i> Bathroom Care</a>
+          <a href="/products?category=Hand Wash"><i class="fas fa-hands-wash"></i> Hand Wash</a>
+        </div>
+      </li>
+      <li><a href="/about">Why HCN</a></li>
+      <li><a href="/contact" class="{% if request.path=='/contact' %}active{% endif %}">Contact Us</a></li>
+    </ul>
+    <div class="nav-actions">
+      <button class="icon-btn" onclick="toggleSearch()"><i class="fas fa-search"></i></button>
+      <a href="/cart" class="icon-btn cart-btn">
+        <i class="fas fa-shopping-cart"></i>
+        <span class="cart-count" id="cartCount">0</span>
+      </a>
+      {% if current_user.logged_in %}
+      <div class="user-menu-wrap has-dropdown">
+        <button class="user-avatar-btn">
+          <i class="fas fa-user-circle"></i>
+          <span class="user-name-short">{{ current_user.name.split()[0] }}</span>
+          <i class="fas fa-chevron-down" style="font-size:0.7rem;"></i>
+        </button>
+        <div class="dropdown user-dropdown">
+          <a href="/account"><i class="fas fa-home"></i> My Account</a>
+          <a href="/account/orders"><i class="fas fa-box"></i> My Orders</a>
+          <a href="/account/profile"><i class="fas fa-user"></i> Profile</a>
+          <a href="/logout" style="color:#ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+      </div>
+      {% else %}
+      <a href="/login" class="btn-outline" style="padding:8px 18px;font-size:0.85rem;"><i class="fas fa-sign-in-alt"></i> Login</a>
+      <a href="/register" class="btn-primary" style="padding:8px 18px;font-size:0.85rem;"><i class="fas fa-user-plus"></i> Register</a>
+      {% endif %}
+    </div>
+    <button class="hamburger" onclick="openMobileMenu()"><i class="fas fa-bars"></i></button>
+  </div>
+  <!-- Search Bar -->
+  <div class="search-bar" id="searchBar">
+    <div class="search-inner">
+      <input type="text" id="searchInput" placeholder="Search products..." onkeyup="handleSearchInput(event)" oninput="liveSearch(this.value)" autocomplete="off">
+      <div class="search-results-dropdown" id="searchDropdown"></div>
+      <button onclick="doSearch()"><i class="fas fa-search"></i></button>
+      <button onclick="toggleSearch()" class="close-search"><i class="fas fa-times"></i></button>
+    </div>
+  </div>
+</nav>
+<!-- Mobile Nav Overlay -->
+<div class="mobile-nav-overlay" id="mobileNavOverlay" onclick="closeMobileMenu()"></div>
+
+{% block content %}{% endblock %}
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-col brand-col">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="HCN">
+      <p>HCN (Hygiene Care Novelty) is committed to providing premium quality cleaning and hygiene solutions for a healthier and cleaner tomorrow.</p>
+      <div class="social-links">
+        <a href="#"><i class="fab fa-facebook-f"></i></a>
+        <a href="#"><i class="fab fa-instagram"></i></a>
+        <a href="#"><i class="fab fa-whatsapp"></i></a>
+      </div>
+    </div>
+    <div class="footer-col">
+      <h4>Quick Links</h4>
+      <ul>
+        <li><a href="/about">About Us</a></li>
+        <li><a href="/products">Products</a></li>
+        <li><a href="/about">Why HCN</a></li>
+        <li><a href="/contact">Contact Us</a></li>
+        <li><a href="/become-a-distributor">Become a Distributor</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Categories</h4>
+      <ul>
+        <li><a href="/products?category=Dish Care">Dish Care</a></li>
+        <li><a href="/products?category=Kitchen Care">Kitchen Care</a></li>
+        <li><a href="/products?category=Laundry Care">Laundry Care</a></li>
+        <li><a href="/products?category=Bathroom Care">Bathroom Care</a></li>
+        <li><a href="/products?category=Hand Wash">Hand Wash</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>My Account</h4>
+      <ul>
+        {% if current_user.logged_in %}
+        <li><a href="/account"><i class="fas fa-home" style="width:16px;"></i> Dashboard</a></li>
+        <li><a href="/account/orders"><i class="fas fa-box" style="width:16px;"></i> My Orders</a></li>
+        <li><a href="/account/profile"><i class="fas fa-user" style="width:16px;"></i> Profile</a></li>
+        <li><a href="/logout" style="color:#ef4444;"><i class="fas fa-sign-out-alt" style="width:16px;"></i> Logout</a></li>
+        {% else %}
+        <li><a href="/login"><i class="fas fa-sign-in-alt" style="width:16px;"></i> Login</a></li>
+        <li><a href="/register"><i class="fas fa-user-plus" style="width:16px;"></i> Register</a></li>
+        {% endif %}
+        <li><a href="/admin/login" style="color:#94a3b8;font-size:0.82rem;"><i class="fas fa-lock" style="width:16px;"></i> Admin Panel</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Customer Support</h4>
+      <ul class="contact-list">
+        <li><i class="fas fa-envelope"></i> info@hcncare.com</li>
+        <li><i class="fas fa-phone"></i> +91 98765 43210</li>
+        <li><i class="fas fa-clock"></i> Mon - Sat: 9:00 AM – 6:00 PM</li>
+      </ul>
+      <div class="newsletter-form" style="margin-top:16px;">
+        <input type="email" placeholder="Enter your email">
+        <button class="btn-primary">Subscribe</button>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2024 HCN (Hygiene Care Novelty). All Rights Reserved.</span>
+    <div>
+      <a href="#">Privacy Policy</a>
+      <a href="#">Terms & Conditions</a>
+    </div>
+  </div>
+</footer>
+
+<!-- Toast Notification -->
+<div id="toast" class="toast"></div>
+
+<script>
+  // Set login status for JS
+  window.__userLoggedIn = {% if current_user.logged_in %}true{% else %}false{% endif %};
+</script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

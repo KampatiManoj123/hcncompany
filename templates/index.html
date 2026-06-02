@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+{% block title %}HCN - Premium Cleaning & Hygiene Solutions{% endblock %}
+{% block content %}
+
+<!-- Hero -->
+<section class="hero-new">
+  <div class="hero-new-inner">
+    <!-- LEFT: Text -->
+    <div class="hero-new-text">
+      <div class="hero-new-logo">
+        <img src="/static/images/logo.png" alt="HCN Logo">
+      </div>
+      <h1>Premium Cleaning &<br><span>Hygiene Solutions</span></h1>
+      <p class="hero-new-sub">Creating a Germ Free Environment</p>
+      <p class="hero-new-desc">HCN manufactures high quality cleaning and hygiene products for healthier homes, workplaces and commercial spaces.</p>
+      <div class="hero-new-btns">
+        <a href="/products" class="btn-primary" style="font-size:0.97rem;padding:13px 30px;"><i class="fas fa-shopping-bag"></i> Shop Now</a>
+        <a href="/products" class="btn-outline" style="font-size:0.97rem;padding:12px 28px;">Explore Categories <i class="fas fa-chevron-right"></i></a>
+      </div>
+      <div class="hero-new-badges">
+        <span><i class="fas fa-industry"></i> Own Manufacturing</span>
+        <span><i class="fas fa-shield-alt"></i> Quality Assured</span>
+        <span><i class="fas fa-leaf"></i> Safe & Effective</span>
+        <span><i class="fas fa-seedling"></i> Eco Friendly</span>
+      </div>
+    </div>
+    <!-- RIGHT: Banner image (products only, no overflow) -->
+    <div class="hero-new-img">
+      <img src="/static/images/hero_banner.png" alt="HCN Products">
+    </div>
+  </div>
+</section>
+
+<!-- Categories -->
+<section class="categories-row">
+  <div class="section-inner">
+    <div class="cat-card" onclick="location.href='/products?category=Dish Care'">
+      <div style="font-size:2.5rem;color:#22c55e;">🍽️</div>
+      <h3 style="color:#16a34a;">Dish Care</h3>
+      <p>Sparkling clean dishes always</p>
+    </div>
+    <div class="cat-card" onclick="location.href='/products?category=Kitchen Care'">
+      <div style="font-size:2.5rem;color:#f97316;">🍳</div>
+      <h3 style="color:#ea580c;">Kitchen Care</h3>
+      <p>Tough on grease, safe on hands</p>
+    </div>
+    <div class="cat-card" onclick="location.href='/products?category=Laundry Care'">
+      <div style="font-size:2.5rem;color:#1a56db;">👔</div>
+      <h3 style="color:#1341b0;">Laundry Care</h3>
+      <p>Bright &amp; fresh every time</p>
+    </div>
+    <div class="cat-card" onclick="location.href='/products?category=Bathroom Care'">
+      <div style="font-size:2.5rem;color:#8b5cf6;">🚿</div>
+      <h3 style="color:#7c3aed;">Bathroom Care</h3>
+      <p>10X cleaning power</p>
+    </div>
+    <div class="cat-card" onclick="location.href='/products?category=Hand Wash'">
+      <div style="font-size:2.5rem;color:#ec4899;">🧴</div>
+      <h3 style="color:#db2777;">Hand Wash</h3>
+      <p>Gentle care, protected hands</p>
+    </div>
+  </div>
+</section>
+
+<!-- Why HCN -->
+<section class="why-hcn">
+  <div class="section-inner">
+    <div class="section-header">
+      <h2>Why Choose HCN?</h2>
+      <p>We deliver superior cleaning solutions with care for you and the environment.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card"><div class="feature-icon"><i class="fas fa-industry"></i></div><h4>Own Manufacturing Unit</h4><p>High quality products made in our own facility</p></div>
+      <div class="feature-card"><div class="feature-icon"><i class="fas fa-shield-alt"></i></div><h4>Quality Tested Products</h4><p>Every product goes through strict quality checks</p></div>
+      <div class="feature-card"><div class="feature-icon"><i class="fas fa-flask"></i></div><h4>Advanced &amp; Safe Formula</h4><p>Effective cleaning with safe and trusted ingredients</p></div>
+      <div class="feature-card"><div class="feature-icon"><i class="fas fa-leaf"></i></div><h4>Eco Friendly Products</h4><p>Environment conscious formulas and packaging</p></div>
+      <div class="feature-card"><div class="feature-icon"><i class="fas fa-boxes"></i></div><h4>Bulk Supply Available</h4><p>Best solutions for businesses and bulk requirements</p></div>
+      <div class="feature-card"><div class="feature-icon"><i class="fas fa-headset"></i></div><h4>Reliable Customer Support</h4><p>We are here to support you 24/7</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- Search Results (hidden by default, shown when user searches) -->
+<section class="product-section" id="searchResultsSection" style="display:none;">
+  <div class="product-section-inner">
+    <div class="section-row">
+      <h2>Search Results <span id="searchResultsQuery" style="color:var(--blue);font-size:1rem;font-weight:600;"></span></h2>
+      <button onclick="clearHomeSearch()" class="btn-outline" style="padding:6px 16px;font-size:0.82rem;">✕ Clear</button>
+    </div>
+    <div class="products-grid" id="searchResultsGrid"></div>
+  </div>
+</section>
+
+<!-- Newly Launched -->
+<section class="product-section">
+  <div class="product-section-inner">
+    <div class="section-row">
+      <h2>Newly Launched <span style="font-size:1.4rem;">🆕</span></h2>
+      <a href="/products" class="view-all">View All</a>
+    </div>
+    <div class="products-grid" id="newProducts">
+      <div class="skeleton-card" style="height:280px;background:#f3f4f6;border-radius:12px;"></div>
+      <div class="skeleton-card" style="height:280px;background:#f3f4f6;border-radius:12px;"></div>
+      <div class="skeleton-card" style="height:280px;background:#f3f4f6;border-radius:12px;"></div>
+      <div class="skeleton-card" style="height:280px;background:#f3f4f6;border-radius:12px;"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Best Sellers -->
+<section class="product-section" style="padding-top:0;">
+  <div class="product-section-inner">
+    <div class="section-row">
+      <h2>Best Sellers <span style="font-size:1.4rem;">🔥</span></h2>
+      <a href="/products" class="view-all">View All</a>
+    </div>
+    <div class="products-grid" id="bestSellers">
+      <div class="skeleton-card" style="height:280px;background:#f3f4f6;border-radius:12px;"></div>
+      <div class="skeleton-card" style="height:280px;background:#f3f4f6;border-radius:12px;"></div>
+      <div class="skeleton-card" style="height:280px;background:#f3f4f6;border-radius:12px;"></div>
+      <div class="skeleton-card" style="height:280px;background:#f3f4f6;border-radius:12px;"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Offers Banner -->
+<div class="offers-banner" style="max-width:1232px;margin:0 auto 40px;">
+  <div class="offer-text">
+    <span class="tag">Special Offers</span>
+    <h2>CLEAN MORE, <span>SAVE MORE!</span><br>UP TO 20% OFF</h2>
+    <p>On Selected Products</p>
+    <a href="/products" class="btn-primary" style="background:#fff;color:var(--blue);"><i class="fas fa-tag"></i> Shop Offers</a>
+  </div>
+  <div class="offer-badge">
+    <span>UP TO</span>
+    <span>20%</span>
+    <span>OFF</span>
+  </div>
+</div>
+
+<!-- Stats Bar -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat-item"><h3>100+</h3><p>Quality Products</p></div>
+    <div class="stat-item"><h3>500+</h3><p>Happy Customers</p></div>
+    <div class="stat-item"><h3>20+</h3><p>Distributors</p></div>
+    <div class="stat-item"><h3>100%</h3><p>Customer Satisfaction</p></div>
+  </div>
+</div>
+
+<!-- Product Modal -->
+<div class="modal-overlay" id="productModal" onclick="if(event.target===this)closeProductModal()">
+  <div class="modal-box">
+    <div class="product-detail">
+      <button class="modal-close" onclick="closeProductModal()"><i class="fas fa-times"></i></button>
+      <div class="detail-img"><img id="modal-img" src="" alt=""></div>
+      <div class="detail-info">
+        <h2 id="modal-name"></h2>
+        <div class="product-price">
+          <span class="price" id="modal-price"></span>
+          <span class="mrp" id="modal-mrp"></span>
+          <span class="discount" id="modal-discount"></span>
+        </div>
+        <p class="detail-desc" id="modal-desc"></p>
+        <ul class="detail-features" id="modal-features"></ul>
+        <div style="display:flex;gap:16px;margin-bottom:12px;font-size:0.85rem;color:var(--text-muted);">
+          <span>Weight: <b id="modal-weight">-</b></span>
+          <span>SKU: <b id="modal-sku">-</b></span>
+          <span id="modal-stock" style="color:var(--green);font-weight:700;"></span>
+        </div>
+        <div class="qty-row">
+          <span style="font-weight:600;">Quantity:</span>
+          <div class="qty-ctrl">
+            <button onclick="changeModalQty(-1)">−</button>
+            <span id="modal-qty">1</span>
+            <button onclick="changeModalQty(1)">+</button>
+          </div>
+        </div>
+        <div class="detail-btns">
+          <button class="btn-primary" onclick="addModalToCart()" style="flex:1;justify-content:center;"><i class="fas fa-cart-plus"></i> Add to Cart</button>
+          <button class="btn-green" onclick="buyNow()" style="flex:1;"><i class="fas fa-bolt"></i> Buy Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+async function loadHomeProducts() {
+  try {
+    const res = await fetch('/api/products');
+    const products = await res.json();
+    const newProds = products.filter(p => p.is_new).slice(0, 4);
+    const bestSellers = products.filter(p => p.is_bestseller).slice(0, 4);
+    
+    renderGrid('newProducts', newProds.length ? newProds : products.slice(0, 4));
+    renderGrid('bestSellers', bestSellers.length ? bestSellers : products.slice(0, 4));
+  } catch(e) {
+    document.getElementById('newProducts').innerHTML = '<p style="color:#999;grid-column:1/-1;text-align:center;padding:40px;">No products yet. Add some from the admin panel!</p>';
+    document.getElementById('bestSellers').innerHTML = '<p style="color:#999;grid-column:1/-1;text-align:center;padding:40px;">No products yet. Add some from the admin panel!</p>';
+  }
+}
+
+function renderGrid(containerId, products) {
+  const el = document.getElementById(containerId);
+  if (!products.length) {
+    el.innerHTML = '<p style="color:#999;grid-column:1/-1;text-align:center;padding:40px;">No products available.</p>';
+    return;
+  }
+  el.innerHTML = products.map(p => productCardHTML(p)).join('');
+}
+
+function productCardHTML(p) {
+  const badge = p.is_new ? '<span class="product-badge">NEW</span>' : (p.is_bestseller ? '<span class="product-badge bestseller">HOT</span>' : '');
+  const discount = p.mrp && p.mrp > p.price ? `<span class="discount">${Math.round((1-p.price/p.mrp)*100)}% off</span>` : '';
+  const mrp = p.mrp && p.mrp > p.price ? `<span class="mrp">₹${p.mrp.toFixed(2)}</span>` : '';
+  return `
+  <div class="product-card" onclick="openProductModal('${p._id.$oid || p._id}')">
+    <div class="product-img">
+      ${badge}
+      <img src="${p.image || '/static/images/logo.png'}" alt="${p.name}" onerror="this.src='/static/images/logo.png'">
+    </div>
+    <div class="product-info">
+      <h3>${p.name}</h3>
+      <div class="product-price">
+        <span class="price">₹${p.price.toFixed(2)}</span>
+        ${mrp}
+        ${discount}
+      </div>
+      <button class="add-cart-btn" onclick="event.stopPropagation();addToCart({_id:'${p._id.$oid || p._id}',name:'${p.name.replace(/'/g,"\\'")}',price:${p.price},image:'${p.image||''}',category:'${p.category}'})">
+        <i class="fas fa-cart-plus"></i> Add to Cart
+      </button>
+    </div>
+  </div>`;
+}
+
+loadHomeProducts();
+
+// Handle search results on home page
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('search');
+  if (q) {
+    document.getElementById('searchResultsSection').style.display = '';
+    document.getElementById('searchResultsQuery').textContent = `for "${q}"`;
+    const inp = document.getElementById('searchInput');
+    if (inp) inp.value = q;
+    // Show search bar open
+    const bar = document.getElementById('searchBar');
+    if (bar) bar.classList.add('open');
+    // Filter products
+    fetch('/api/products').then(r => r.json()).then(products => {
+      const ql = q.toLowerCase();
+      const words = ql.split(/\s+/).filter(Boolean);
+      const matched = products.filter(p => {
+        const name = (p.name || '').toLowerCase();
+        return words.some(w => name.includes(w));
+      });
+      const grid = document.getElementById('searchResultsGrid');
+      if (!matched.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#9ca3af;font-size:0.95rem;"><i class="fas fa-search" style="font-size:2.5rem;display:block;margin-bottom:12px;color:#d1d5db;"></i>No products found for <b>"' + q + '"</b></div>';
+      } else {
+        grid.innerHTML = matched.map(p => productCardHTML(p)).join('');
+      }
+      // Scroll to results
+      document.getElementById('searchResultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+})();
+
+function clearHomeSearch() {
+  window.location.href = '/';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% block title %}Products - HCN{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Our Products</h1>
+  <p>Premium cleaning and hygiene solutions for every need</p>
+</div>
+
+<div class="products-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h3><i class="fas fa-filter" style="color:var(--blue);"></i> Filter</h3>
+    <div class="filter-group">
+      <h4>Categories</h4>
+      <label><input type="radio" name="cat" value="all" checked onchange="filterProducts()"> All Products</label>
+      <label><input type="radio" name="cat" value="Dish Care" onchange="filterProducts()"> Dish Care</label>
+      <label><input type="radio" name="cat" value="Kitchen Care" onchange="filterProducts()"> Kitchen Care</label>
+      <label><input type="radio" name="cat" value="Laundry Care" onchange="filterProducts()"> Laundry Care</label>
+      <label><input type="radio" name="cat" value="Bathroom Care" onchange="filterProducts()"> Bathroom Care</label>
+      <label><input type="radio" name="cat" value="Hand Wash" onchange="filterProducts()"> Hand Wash</label>
+    </div>
+    <div class="filter-group">
+      <h4>Product Type</h4>
+      <label><input type="checkbox" id="filter-new" onchange="filterProducts()"> New Arrivals</label>
+      <label><input type="checkbox" id="filter-best" onchange="filterProducts()"> Best Sellers</label>
+    </div>
+    <div class="filter-group">
+      <h4>Price Range</h4>
+      <div style="display:flex;gap:8px;align-items:center;font-size:0.85rem;">
+        <input type="number" id="min-price" placeholder="Min" style="width:72px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;" onchange="filterProducts()">
+        <span>–</span>
+        <input type="number" id="max-price" placeholder="Max" style="width:72px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;" onchange="filterProducts()">
+      </div>
+    </div>
+    <button class="btn-outline" style="width:100%;margin-top:8px;" onclick="clearFilters()">Clear Filters</button>
+  </aside>
+
+  <!-- Main -->
+  <div class="products-main">
+    <div class="top-bar">
+      <span id="products-count">Loading...</span>
+      <select class="sort-select" onchange="sortProducts(this.value)">
+        <option value="">Sort by</option>
+        <option value="price-asc">Price: Low to High</option>
+        <option value="price-desc">Price: High to Low</option>
+        <option value="name">Name A–Z</option>
+      </select>
+    </div>
+    <div class="products-grid" id="productsGrid">
+      <div class="skeleton-card" style="height:280px;background:#f3f4f6;border-radius:12px;"></div>
+      <div class="skeleton-card" style="height:280px;background:#f3f4f6;border-radius:12px;"></div>
+      <div class="skeleton-card" style="height:280px;background:#f3f4f6;border-radius:12px;"></div>
+      <div class="skeleton-card" style="height:280px;background:#f3f4f6;border-radius:12px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Product Modal -->
+<div class="modal-overlay" id="productModal" onclick="if(event.target===this)closeProductModal()">
+  <div class="modal-box">
+    <div class="product-detail">
+      <button class="modal-close" onclick="closeProductModal()"><i class="fas fa-times"></i></button>
+      <div class="detail-img"><img id="modal-img" src="" alt=""></div>
+      <div class="detail-info">
+        <h2 id="modal-name"></h2>
+        <div class="product-price">
+          <span class="price" id="modal-price"></span>
+          <span class="mrp" id="modal-mrp"></span>
+          <span class="discount" id="modal-discount"></span>
+        </div>
+        <p class="detail-desc" id="modal-desc"></p>
+        <ul class="detail-features" id="modal-features"></ul>
+        <div style="display:flex;gap:16px;margin-bottom:12px;font-size:0.85rem;color:var(--text-muted);">
+          <span>Weight: <b id="modal-weight">-</b></span>
+          <span>SKU: <b id="modal-sku">-</b></span>
+          <span id="modal-stock" style="color:var(--green);font-weight:700;"></span>
+        </div>
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.82rem;display:flex;align-items:center;gap:8px;">
+          <i class="fas fa-truck" style="color:#16a34a;"></i>
+          <span>Free delivery by <b id="modal-delivery-date" style="color:#15803d;"></b></span>
+        </div>
+        <div class="qty-row">
+          <span style="font-weight:600;">Quantity:</span>
+          <div class="qty-ctrl">
+            <button onclick="changeModalQty(-1)">−</button>
+            <span id="modal-qty">1</span>
+            <button onclick="changeModalQty(1)">+</button>
+          </div>
+        </div>
+        <div class="detail-btns">
+          <button class="btn-primary" onclick="addModalToCart()" style="flex:1;justify-content:center;"><i class="fas fa-cart-plus"></i> Add to Cart</button>
+          <button class="btn-green" onclick="buyNow()" style="flex:1;"><i class="fas fa-bolt"></i> Buy Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+let allProducts = [];
+let displayedProducts = [];
+
+async function loadProducts() {
+  try {
+    const res = await fetch('/api/products');
+    allProducts = await res.json();
+    
+    // Check URL params
+    const params = new URLSearchParams(window.location.search);
+    const cat = params.get('category');
+    const search = params.get('search');
+    
+    if (cat) {
+      const radios = document.querySelectorAll('input[name="cat"]');
+      radios.forEach(r => { if (r.value === cat) r.checked = true; });
+    }
+    if (search) {
+      document.getElementById('searchInput') && (document.getElementById('searchInput').value = search);
+    }
+    
+    filterProducts();
+  } catch(e) {
+    document.getElementById('productsGrid').innerHTML = '<p style="color:#999;grid-column:1/-1;text-align:center;padding:60px;">Could not load products. Make sure the server is running.</p>';
+  }
+}
+
+function filterProducts() {
+  const cat = document.querySelector('input[name="cat"]:checked')?.value || 'all';
+  const isNew = document.getElementById('filter-new')?.checked;
+  const isBest = document.getElementById('filter-best')?.checked;
+  const minP = parseFloat(document.getElementById('min-price')?.value) || 0;
+  const maxP = parseFloat(document.getElementById('max-price')?.value) || Infinity;
+  const search = new URLSearchParams(window.location.search).get('search') || '';
+  
+  displayedProducts = allProducts.filter(p => {
+    if (cat !== 'all' && p.category !== cat) return false;
+    if (isNew && !p.is_new) return false;
+    if (isBest && !p.is_bestseller) return false;
+    if (p.price < minP || p.price > maxP) return false;
+    if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.description?.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+  
+  renderProducts();
+}
+
+function sortProducts(val) {
+  if (val === 'price-asc') displayedProducts.sort((a,b) => a.price - b.price);
+  else if (val === 'price-desc') displayedProducts.sort((a,b) => b.price - a.price);
+  else if (val === 'name') displayedProducts.sort((a,b) => a.name.localeCompare(b.name));
+  renderProducts();
+}
+
+function renderProducts() {
+  const grid = document.getElementById('productsGrid');
+  document.getElementById('products-count').textContent = `${displayedProducts.length} product${displayedProducts.length !== 1 ? 's' : ''} found`;
+  
+  if (!displayedProducts.length) {
+    grid.innerHTML = '<p style="color:#999;grid-column:1/-1;text-align:center;padding:60px;"><i class="fas fa-box-open" style="font-size:3rem;display:block;margin-bottom:16px;"></i>No products found.</p>';
+    return;
+  }
+  
+  grid.innerHTML = displayedProducts.map(p => {
+    const id = p._id.$oid || p._id;
+    const badge = p.is_new ? '<span class="product-badge">NEW</span>' : (p.is_bestseller ? '<span class="product-badge bestseller">HOT</span>' : '');
+    const discount = p.mrp && p.mrp > p.price ? `<span class="discount">${Math.round((1-p.price/p.mrp)*100)}% off</span>` : '';
+    const mrp = p.mrp && p.mrp > p.price ? `<span class="mrp">₹${p.mrp.toFixed(2)}</span>` : '';
+    return `
+    <div class="product-card" onclick="openProductModal('${id}')">
+      <div class="product-img">
+        ${badge}
+        <img src="${p.image || '/static/images/logo.png'}" alt="${p.name}" onerror="this.src='/static/images/logo.png'">
+      </div>
+      <div class="product-info">
+        <h3>${p.name}</h3>
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">${p.category}</p>
+        <div class="product-price">
+          <span class="price">₹${p.price.toFixed(2)}</span>
+          ${mrp}${discount}
+        </div>
+        <button class="add-cart-btn" onclick="event.stopPropagation();addToCart({_id:'${id}',name:'${p.name.replace(/'/g,"\\'")}',price:${p.price},image:'${p.image||''}',category:'${p.category}'})">
+          <i class="fas fa-cart-plus"></i> Add to Cart
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function clearFilters() {
+  document.querySelector('input[name="cat"][value="all"]').checked = true;
+  document.getElementById('filter-new').checked = false;
+  document.getElementById('filter-best').checked = false;
+  document.getElementById('min-price').value = '';
+  document.getElementById('max-price').value = '';
+  filterProducts();
+}
+
+loadProducts();
+</script>
+{% endblock %}

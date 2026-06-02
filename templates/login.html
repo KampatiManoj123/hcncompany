@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Login - HCN{% endblock %}
+{% block content %}
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img src="/static/images/logo.png" alt="HCN">
+    </div>
+    <h2>Welcome Back</h2>
+    <p class="auth-sub">Login to your HCN account</p>
+    <div id="authError" class="auth-error" style="display:none;"></div>
+    <div class="auth-form">
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="loginEmail" placeholder="Enter your email">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div class="pass-wrap">
+          <input type="password" id="loginPass" placeholder="Enter your password">
+          <button type="button" onclick="togglePass('loginPass')"><i class="fas fa-eye"></i></button>
+        </div>
+      </div>
+      <button class="btn-primary btn-full" onclick="doLogin()">
+        <i class="fas fa-sign-in-alt"></i> Login
+      </button>
+    </div>
+    <p class="auth-switch">Don't have an account? <a href="/register">Register here</a></p>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('authError');
+  if (!email || !password) { showErr('Please fill in all fields'); return; }
+  try {
+    const res = await fetch('/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email, password})
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Restore pending cart item if any
+      const pending = sessionStorage.getItem('hcn_pending_cart');
+      if (pending) {
+        try {
+          const prod = JSON.parse(pending);
+          let cart = JSON.parse(localStorage.getItem('hcn_cart') || '[]');
+          const existing = cart.find(i => i._id === prod._id);
+          if (existing) { existing.qty += 1; }
+          else { cart.push({ ...prod, qty: 1 }); }
+          localStorage.setItem('hcn_cart', JSON.stringify(cart));
+          sessionStorage.removeItem('hcn_pending_cart');
+        } catch(e) {}
+      }
+      // Redirect to next param or account
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get('next') || data.redirect || '/account';
+      window.location.href = next;
+    } else {
+      showErr(data.error || 'Login failed');
+    }
+  } catch(e) { showErr('Network error. Please try again.'); }
+}
+function showErr(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function togglePass(id) {
+  const inp = document.getElementById(id);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+{% endblock %}

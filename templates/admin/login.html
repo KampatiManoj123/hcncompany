@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Login - HCN</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="/static/css/main.css">
+<style>
+body { background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%); min-height:100vh; display:flex; align-items:center; justify-content:center; }
+.admin-login-card { background:#fff; border-radius:20px; padding:48px 40px; width:100%; max-width:420px; box-shadow:0 25px 80px rgba(0,0,0,0.4); }
+.admin-login-logo { text-align:center; margin-bottom:28px; }
+.admin-login-logo img { height:72px; }
+.admin-login-logo h2 { font-size:1.4rem; font-weight:700; color:#111827; margin-top:12px; }
+.admin-login-logo p { color:#6b7280; font-size:0.88rem; }
+.admin-badge { background:#1a56db; color:#fff; font-size:0.72rem; font-weight:700; padding:3px 12px; border-radius:20px; display:inline-block; margin-top:6px; letter-spacing:1px; }
+</style>
+</head>
+<body>
+<div class="admin-login-card">
+  <div class="admin-login-logo">
+    <img src="/static/images/logo.png" alt="HCN">
+    <h2>HCN Admin Panel</h2>
+    <p>Secure administrator access</p>
+    <span class="admin-badge"><i class="fas fa-shield-alt"></i> ADMIN ONLY</span>
+  </div>
+  <div id="loginError" class="auth-error" style="display:none;"></div>
+  <div class="auth-form">
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="adminUser" placeholder="Enter admin username" value="">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <div class="pass-wrap">
+        <input type="password" id="adminPass" placeholder="Enter admin password">
+        <button type="button" onclick="togglePass('adminPass')"><i class="fas fa-eye"></i></button>
+      </div>
+    </div>
+    <button class="btn-primary btn-full" onclick="doAdminLogin()">
+      <i class="fas fa-lock-open"></i> Login to Admin Panel
+    </button>
+  </div>
+  <p style="text-align:center;margin-top:20px;font-size:0.82rem;color:#9ca3af;">
+    <a href="/" style="color:#1a56db;"><i class="fas fa-arrow-left"></i> Back to Store</a>
+  </p>
+</div>
+<script>
+async function doAdminLogin() {
+  const username = document.getElementById('adminUser').value.trim();
+  const password = document.getElementById('adminPass').value;
+  const errEl = document.getElementById('loginError');
+  if (!username || !password) { showErr('Please enter credentials'); return; }
+  try {
+    const res = await fetch('/admin/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const data = await res.json();
+    if (data.success) {
+      window.location.href = data.redirect || '/admin';
+    } else {
+      showErr(data.error || 'Invalid credentials');
+    }
+  } catch(e) { showErr('Network error'); }
+}
+function showErr(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function togglePass(id) {
+  const inp = document.getElementById(id);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doAdminLogin(); });
+</script>
+</body>
+</html>

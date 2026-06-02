@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% block title %}Cart - HCN{% endblock %}
+{% block content %}
+
+<div class="page-header" style="padding:28px 24px;">
+  <h1>Shopping Cart</h1>
+</div>
+
+<div class="cart-layout" style="max-width:1100px;margin:32px auto;padding:0 24px;display:grid;grid-template-columns:1fr 360px;gap:28px;">
+  
+  <div>
+    <div class="cart-items" id="cartItemsContainer">
+      <div class="cart-items-header"><i class="fas fa-shopping-cart" style="color:var(--blue);"></i> Your Items</div>
+      <div id="cartItemsList"><div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:#9ca3af;"></i></div></div>
+    </div>
+    <a href="/products" style="display:inline-flex;align-items:center;gap:8px;color:var(--blue);font-weight:600;margin-top:16px;font-size:0.9rem;">
+      <i class="fas fa-arrow-left"></i> Continue Shopping
+    </a>
+  </div>
+
+  <div>
+    <div class="cart-summary">
+      <h3>Order Summary</h3>
+      <div class="summary-row"><span>Subtotal</span><span id="summary-subtotal">₹0.00</span></div>
+      <div class="summary-row"><span>Delivery</span><span style="color:var(--green);">FREE</span></div>
+      <div class="summary-row total"><span>Total</span><span id="summary-total">₹0.00</span></div>
+      <div class="min-order-note" id="minOrderNote" style="display:none;">
+        <i class="fas fa-info-circle"></i> Minimum order value is <b>₹999</b>. Add ₹<span id="remaining">0</span> more to place order.
+      </div>
+      <div style="background:#dcfce7;border:1px solid #22c55e;border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#166534;margin-bottom:16px;display:none;" id="minOrderOk">
+        <i class="fas fa-check-circle"></i> You can proceed to checkout!
+      </div>
+      <a href="/checkout" id="checkoutBtn" class="checkout-btn" style="display:block;text-align:center;text-decoration:none;">
+        Proceed to Checkout <i class="fas fa-arrow-right"></i>
+      </a>
+      <div style="text-align:center;margin-top:12px;font-size:0.78rem;color:var(--text-muted);">
+        <i class="fas fa-lock"></i> Secure checkout
+      </div>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+        <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;">Or visit our store directly to purchase</p>
+        <button class="btn-outline" style="width:100%;" onclick="showToast('Visit us at our store!','success')">
+          <i class="fas fa-store"></i> Visit Store
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+window.renderCart = renderCart;
+
+function renderCart() {
+  const list = document.getElementById('cartItemsList');
+  const availableItems = cart.filter(i => i.available !== false);
+  const total = getCartTotal();
+
+  document.getElementById('summary-subtotal').textContent = '₹' + total.toFixed(2);
+  document.getElementById('summary-total').textContent = '₹' + total.toFixed(2);
+
+  if (!cart.length) {
+    list.innerHTML = `
+      <div style="text-align:center;padding:60px 24px;">
+        <i class="fas fa-shopping-cart" style="font-size:3.5rem;color:#d1d5db;margin-bottom:16px;display:block;"></i>
+        <h3 style="color:#9ca3af;margin-bottom:8px;">Your cart is empty</h3>
+        <p style="color:#d1d5db;margin-bottom:20px;">Add some products to get started</p>
+        <a href="/products" class="btn-primary">Shop Now</a>
+      </div>`;
+    document.getElementById('minOrderNote').style.display = 'none';
+    document.getElementById('minOrderOk').style.display = 'none';
+    return;
+  }
+
+  list.innerHTML = cart.map(item => {
+    if (item.available === false) {
+      return `
+      <div class="cart-item" style="opacity:0.6;border:1.5px solid #fca5a5;background:#fff5f5;">
+        <div class="cart-item-img" style="background:#f9fafb;">
+          <img src="${item.image || '/static/images/logo.png'}" alt="${item.name || 'Product'}" onerror="this.src='/static/images/logo.png'" style="filter:grayscale(1);">
+        </div>
+        <div class="cart-item-info">
+          <h4 style="color:#9ca3af;">${item.name || 'Product'}</h4>
+          <span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:12px;font-size:0.78rem;font-weight:700;"><i class="fas fa-exclamation-triangle"></i> Not Available</span>
+          <p style="font-size:0.78rem;color:#ef4444;margin-top:6px;">This product has been removed by the admin.</p>
+        </div>
+        <div class="cart-item-actions">
+          <button class="remove-btn" onclick="removeFromCart('${item._id}')"><i class="fas fa-trash"></i> Remove</button>
+        </div>
+      </div>`;
+    }
+    return `
+    <div class="cart-item">
+      <div class="cart-item-img">
+        <img src="${item.image || '/static/images/logo.png'}" alt="${item.name}" onerror="this.src='/static/images/logo.png'">
+      </div>
+      <div class="cart-item-info">
+        <h4>${item.name}</h4>
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">${item.category || ''}</p>
+        <span class="price">₹${item.price.toFixed(2)}</span>
+        <span style="font-size:0.82rem;color:var(--text-muted);margin-left:8px;">× ${item.qty} = ₹${(item.price*item.qty).toFixed(2)}</span>
+      </div>
+      <div class="cart-item-actions">
+        <div class="qty-ctrl">
+          <button onclick="updateQty('${item._id}', ${item.qty - 1})">−</button>
+          <span>${item.qty}</span>
+          <button onclick="updateQty('${item._id}', ${item.qty + 1})">+</button>
+        </div>
+        <button class="remove-btn" onclick="removeFromCart('${item._id}')"><i class="fas fa-trash"></i> Remove</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  if (total < 999) {
+    document.getElementById('minOrderNote').style.display = 'block';
+    document.getElementById('minOrderOk').style.display = 'none';
+    document.getElementById('remaining').textContent = (999 - total).toFixed(2);
+  } else {
+    document.getElementById('minOrderNote').style.display = 'none';
+    document.getElementById('minOrderOk').style.display = 'block';
+  }
+}
+
+document.getElementById('checkoutBtn').addEventListener('click', function(e) {
+  if (!window.__userLoggedIn) {
+    e.preventDefault();
+    showToast('Please login to proceed to checkout', 'error');
+    setTimeout(() => { window.location.href = '/login?next=/checkout'; }, 900);
+    return;
+  }
+  // Block checkout if any unavailable items
+  if (cart.some(i => i.available === false)) {
+    e.preventDefault();
+    showToast('Remove unavailable items from cart before checkout', 'error');
+    return;
+  }
+  // Block if cart empty or below minimum
+  if (!cart.filter(i => i.available !== false).length || getCartTotal() < 999) {
+    e.preventDefault();
+    showToast('Add items worth ₹999 or more to checkout', 'error');
+    return;
+  }
+  // All good — allow navigation to /checkout
+});
+
+// Wait for cart to load from server then render
+(function waitForCart() {
+  if (cartLoaded || !window.__userLoggedIn) { renderCart(); }
+  else { setTimeout(waitForCart, 80); }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,324 @@
+{% extends 'admin/base.html' %}
+{% block title %}Products - HCN Admin{% endblock %}
+{% block page_title %}Products Management{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card-header">
+    <h3><i class="fas fa-box" style="color:var(--blue);"></i> All Products</h3>
+    <button class="btn-sm btn-blue" onclick="openAddModal()"><i class="fas fa-plus"></i> Add Product</button>
+  </div>
+  
+  <!-- Search/Filter Bar -->
+  <div style="padding:16px 24px;border-bottom:1px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;">
+    <input type="text" id="searchProd" placeholder="Search products..." style="padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:0.88rem;flex:1;min-width:200px;" oninput="filterAdminProducts()">
+    <select id="filterCat" style="padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:0.88rem;" onchange="filterAdminProducts()">
+      <option value="">All Categories</option>
+      <option>Dish Care</option>
+      <option>Kitchen Care</option>
+      <option>Laundry Care</option>
+      <option>Bathroom Care</option>
+      <option>Hand Wash</option>
+    </select>
+  </div>
+  
+  <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Image</th>
+          <th>Name</th>
+          <th>Category</th>
+          <th>Price</th>
+          <th>MRP</th>
+          <th>Stock</th>
+          <th>Tags</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="productsTable">
+        <tr><td colspan="8" style="text-align:center;padding:40px;color:#999;">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add/Edit Product Modal -->
+<div class="admin-modal-overlay" id="productFormModal" onclick="if(event.target===this)closeProductModal2()">
+  <div class="admin-modal" style="max-width:700px;">
+    <div class="admin-modal-header">
+      <h3 id="modalTitle">Add New Product</h3>
+      <button onclick="closeProductModal2()" style="background:var(--gray-light);border:none;padding:6px 12px;border-radius:6px;cursor:pointer;"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="admin-modal-body">
+      <input type="hidden" id="editProductId">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Product Name *</label>
+          <input type="text" id="p-name" placeholder="e.g. HCN Dishwash Liquid">
+        </div>
+        <div class="form-group">
+          <label>Category *</label>
+          <select id="p-category">
+            <option value="">Select Category</option>
+            <option>Dish Care</option>
+            <option>Kitchen Care</option>
+            <option>Laundry Care</option>
+            <option>Bathroom Care</option>
+            <option>Hand Wash</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>SKU</label>
+          <input type="text" id="p-sku" placeholder="HCN-001">
+        </div>
+        <div class="form-group">
+          <label>Selling Price (₹) *</label>
+          <input type="number" id="p-price" placeholder="110" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>MRP (₹)</label>
+          <input type="number" id="p-mrp" placeholder="150" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Stock Qty</label>
+          <input type="number" id="p-stock" placeholder="100">
+        </div>
+        <div class="form-group">
+          <label>Weight/Volume</label>
+          <input type="text" id="p-weight" placeholder="e.g. 500ml, 1kg">
+        </div>
+        <div class="form-group full">
+          <label>Description</label>
+          <textarea id="p-description" rows="3" placeholder="Product description..." style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;resize:vertical;"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>Features (one per line)</label>
+          <textarea id="p-features" rows="4" placeholder="Removes tough grease&#10;Safe on hands&#10;Pleasant fragrance" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;resize:vertical;"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>Product Image</label>
+          <input type="file" id="p-image" accept="image/*" onchange="previewImage(this)">
+          <div id="imagePreview" style="margin-top:10px;display:none;">
+            <img id="previewImg" style="max-height:120px;border-radius:8px;border:1.5px solid var(--border);">
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="p-is-new" style="width:18px;height:18px;accent-color:var(--blue);">
+            Mark as New Arrival
+          </label>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="p-is-bestseller" style="width:18px;height:18px;accent-color:var(--orange);">
+            Mark as Best Seller
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:20px;">
+        <button class="btn-primary" style="flex:1;padding:13px;font-size:1rem;" onclick="saveProduct()">
+          <i class="fas fa-save"></i> Save Product
+        </button>
+        <button onclick="closeProductModal2()" style="padding:13px 24px;background:var(--gray-light);border-radius:8px;font-weight:600;">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+let adminProducts = [];
+
+async function loadAdminProducts() {
+  try {
+    const res = await fetch('/api/products');
+    adminProducts = await res.json();
+    renderAdminProducts(adminProducts);
+  } catch(e) {
+    document.getElementById('productsTable').innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#999;">Failed to load</td></tr>';
+  }
+}
+
+function filterAdminProducts() {
+  const q = document.getElementById('searchProd').value.toLowerCase().trim();
+  const cat = document.getElementById('filterCat').value;
+  const filtered = adminProducts.filter(p => {
+    // Match any word/partial from search query against product name
+    const nameMatch = !q || q.split(/\s+/).every(word =>
+      p.name.toLowerCase().includes(word) ||
+      (p.description || '').toLowerCase().includes(word) ||
+      (p.sku || '').toLowerCase().includes(word)
+    );
+    return nameMatch && (!cat || p.category === cat);
+  });
+  renderAdminProducts(filtered);
+}
+
+function renderAdminProducts(products) {
+  const tbody = document.getElementById('productsTable');
+  if (!products.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#999;"><i class="fas fa-box-open" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No products found. Click "Add Product" to get started.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = products.map(p => {
+    const id = p._id.$oid || p._id;
+    return `
+    <tr>
+      <td><img src="${p.image || '/static/images/logo.png'}" style="width:48px;height:48px;object-fit:contain;border-radius:6px;background:#f3f4f6;padding:4px;" onerror="this.src='/static/images/logo.png'"></td>
+      <td><b>${p.name}</b><br><span style="font-size:0.75rem;color:#999;">${p.sku || ''}</span></td>
+      <td><span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;">${p.category}</span></td>
+      <td><b style="color:var(--blue);">₹${p.price?.toFixed(2)}</b></td>
+      <td style="color:#999;text-decoration:line-through;">₹${p.mrp?.toFixed(2) || '-'}</td>
+      <td>${p.stock || 0}</td>
+      <td>
+        ${p.is_new ? '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:0.72rem;font-weight:700;margin-right:4px;">NEW</span>' : ''}
+        ${p.is_bestseller ? '<span style="background:#fed7aa;color:#9a3412;padding:2px 8px;border-radius:10px;font-size:0.72rem;font-weight:700;">HOT</span>' : ''}
+      </td>
+      <td>
+        <button class="btn-sm btn-blue" onclick="editProduct('${id}')" style="margin-right:6px;"><i class="fas fa-edit"></i></button>
+        <button class="btn-sm btn-red" onclick="deleteProduct('${id}','${p.name.replace(/'/g,"\\'")}')" ><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openAddModal() {
+  document.getElementById('modalTitle').textContent = 'Add New Product';
+  document.getElementById('editProductId').value = '';
+  ['p-name','p-sku','p-weight','p-description','p-features'].forEach(id => document.getElementById(id).value = '');
+  ['p-price','p-mrp','p-stock'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('p-category').value = '';
+  document.getElementById('p-is-new').checked = false;
+  document.getElementById('p-is-bestseller').checked = false;
+  document.getElementById('imagePreview').style.display = 'none';
+  document.getElementById('productFormModal').classList.add('open');
+}
+
+async function editProduct(id) {
+  // Always fetch fresh product data from server (fixes re-edit bug)
+  let p;
+  try {
+    const res = await fetch(`/api/products/${id}`);
+    p = await res.json();
+  } catch(e) {
+    // Fallback to cached
+    p = adminProducts.find(x => (x._id.$oid || x._id) === id);
+    if (!p) return;
+  }
+  document.getElementById('modalTitle').textContent = 'Edit Product';
+  document.getElementById('editProductId').value = id;
+  document.getElementById('p-name').value = p.name || '';
+  document.getElementById('p-category').value = p.category || '';
+  document.getElementById('p-sku').value = p.sku || '';
+  document.getElementById('p-price').value = p.price || '';
+  document.getElementById('p-mrp').value = p.mrp || '';
+  document.getElementById('p-stock').value = p.stock || '';
+  document.getElementById('p-weight').value = p.weight || '';
+  document.getElementById('p-description').value = p.description || '';
+  document.getElementById('p-features').value = (p.features || []).join('\n');
+  document.getElementById('p-is-new').checked = p.is_new || false;
+  document.getElementById('p-is-bestseller').checked = p.is_bestseller || false;
+  document.getElementById('p-image').value = '';
+  if (p.image) {
+    document.getElementById('previewImg').src = p.image;
+    document.getElementById('imagePreview').style.display = 'block';
+  } else {
+    document.getElementById('imagePreview').style.display = 'none';
+  }
+  document.getElementById('productFormModal').classList.add('open');
+}
+
+function closeProductModal2() {
+  document.getElementById('productFormModal').classList.remove('open');
+  // Reset form completely so next open is fresh
+  document.getElementById('editProductId').value = '';
+  ['p-name','p-sku','p-weight','p-description','p-features'].forEach(id => document.getElementById(id).value = '');
+  ['p-price','p-mrp','p-stock'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('p-category').value = '';
+  document.getElementById('p-is-new').checked = false;
+  document.getElementById('p-is-bestseller').checked = false;
+  document.getElementById('p-image').value = '';
+  document.getElementById('imagePreview').style.display = 'none';
+  document.getElementById('previewImg').src = '';
+  // Reset save button
+  const saveBtn = document.querySelector('#productFormModal .btn-primary');
+  if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Product'; }
+}
+
+function previewImage(input) {
+  const file = input.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('previewImg').src = e.target.result;
+      document.getElementById('imagePreview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+async function saveProduct() {
+  const name = document.getElementById('p-name').value.trim();
+  const category = document.getElementById('p-category').value;
+  const price = document.getElementById('p-price').value;
+  
+  if (!name || !category || !price) {
+    showToast('Please fill required fields', 'error');
+    return;
+  }
+  
+  const formData = new FormData();
+  formData.append('name', name);
+  formData.append('category', category);
+  formData.append('sku', document.getElementById('p-sku').value);
+  formData.append('price', price);
+  formData.append('mrp', document.getElementById('p-mrp').value || 0);
+  formData.append('stock', document.getElementById('p-stock').value || 0);
+  formData.append('weight', document.getElementById('p-weight').value);
+  formData.append('description', document.getElementById('p-description').value);
+  formData.append('features', document.getElementById('p-features').value);
+  formData.append('is_new', document.getElementById('p-is-new').checked);
+  formData.append('is_bestseller', document.getElementById('p-is-bestseller').checked);
+  
+  const imageFile = document.getElementById('p-image').files[0];
+  if (imageFile) formData.append('image', imageFile);
+  
+  const editId = document.getElementById('editProductId').value;
+  const url = editId ? `/api/products/${editId}` : '/api/products';
+  const method = editId ? 'PUT' : 'POST';
+  
+  try {
+    const saveBtn = document.querySelector('#productFormModal .btn-primary');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; }
+    const res = await fetch(url, { method, body: formData });
+    if (res.ok) {
+      showToast(editId ? 'Product updated!' : 'Product added!', 'success');
+      closeProductModal2();
+      await loadAdminProducts();
+    } else {
+      showToast('Failed to save', 'error');
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Product'; }
+    }
+  } catch(e) {
+    showToast('Server error', 'error');
+    const saveBtn = document.querySelector('#productFormModal .btn-primary');
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Product'; }
+  }
+}
+
+async function deleteProduct(id, name) {
+  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  try {
+    await fetch(`/api/products/${id}`, { method: 'DELETE' });
+    showToast('Product deleted', 'success');
+    loadAdminProducts();
+  } catch(e) {
+    showToast('Failed to delete', 'error');
+  }
+}
+
+loadAdminProducts();
+</script>
+{% endblock %}

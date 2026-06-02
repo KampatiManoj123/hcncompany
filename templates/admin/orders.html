@@ -1,0 +1,222 @@
+{% extends 'admin/base.html' %}
+{% block title %}Orders - HCN Admin{% endblock %}
+{% block page_title %}Orders Management{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card-header">
+    <h3><i class="fas fa-shopping-bag" style="color:var(--blue);"></i> All Orders</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <select id="statusFilter" style="padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:0.85rem;" onchange="filterOrders()">
+        <option value="">All Status</option>
+        <option>Pending</option>
+        <option>Processing</option>
+        <option>Shipped</option>
+        <option>Delivered</option>
+        <option>Cancelled</option>
+        <option>Cancel Requested</option>
+      </select>
+    </div>
+  </div>
+  <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Order ID</th>
+          <th>Customer</th>
+          <th>Phone</th>
+          <th>Items</th>
+          <th>Total</th>
+          <th>Payment</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="ordersTable">
+        <tr><td colspan="9" style="text-align:center;padding:40px;color:#999;">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Order Detail Modal -->
+<div class="admin-modal-overlay" id="orderDetailModal">
+  <div class="admin-modal" style="max-width:700px;">
+    <div class="admin-modal-header">
+      <h3>Order Details</h3>
+      <button onclick="closeOrderModal()" style="background:var(--gray-light);border:none;padding:6px 12px;border-radius:6px;cursor:pointer;"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="admin-modal-body" id="orderDetailContent"></div>
+  </div>
+</div>
+
+<!-- Confirm Delete Order Modal -->
+<div class="admin-modal-overlay" id="deleteOrderModal">
+  <div class="admin-modal" style="max-width:400px;">
+    <div class="admin-modal-header">
+      <h3><i class="fas fa-trash" style="color:#ef4444;"></i> Delete Order</h3>
+      <button onclick="closeDeleteOrderModal()" style="background:var(--gray-light);border:none;padding:6px 12px;border-radius:6px;cursor:pointer;"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin-bottom:8px;">Delete order <b id="deleteOrderId" style="color:var(--blue);"></b>?</p>
+      <p style="font-size:0.84rem;color:#6b7280;margin-bottom:20px;">This action cannot be undone. Only delivered/cancelled orders can be deleted.</p>
+      <div style="display:flex;gap:12px;">
+        <button onclick="closeDeleteOrderModal()" style="flex:1;padding:12px;border:1.5px solid var(--border);background:#fff;border-radius:8px;cursor:pointer;font-weight:600;">Cancel</button>
+        <button onclick="confirmDeleteOrder()" style="flex:1;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;"><i class="fas fa-trash"></i> Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+let allOrders = [];
+let deleteTargetOrderId = null;
+
+async function loadOrders() {
+  try {
+    const res = await fetch('/api/orders');
+    allOrders = await res.json();
+    renderOrders(allOrders);
+  } catch(e) {
+    document.getElementById('ordersTable').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:#999;">No orders found</td></tr>';
+  }
+}
+
+function filterOrders() {
+  const status = document.getElementById('statusFilter').value;
+  const filtered = status ? allOrders.filter(o => o.status === status) : allOrders;
+  renderOrders(filtered);
+}
+
+function renderOrders(orders) {
+  const tbody = document.getElementById('ordersTable');
+  if (!orders.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:#999;"><i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No orders yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = orders.map(o => {
+    const date = o.created_at?.$date ? new Date(o.created_at.$date).toLocaleDateString('en-IN') : '-';
+    const itemCount = (o.items || []).length;
+    const isDeletable = ['Delivered','Cancelled'].includes(o.status);
+    const isCancelRequested = o.status === 'Cancel Requested';
+    return `<tr ${isCancelRequested ? 'style="background:#fff7ed;"' : ''}>
+      <td><b style="color:var(--blue);">${o.order_id}</b>${isCancelRequested ? '<br><span style="font-size:0.72rem;color:#f97316;font-weight:700;">⚠ Cancel Requested</span>' : ''}</td>
+      <td>${o.customer?.name || '-'}</td>
+      <td>${o.customer?.phone || '-'}</td>
+      <td>${itemCount} item${itemCount !== 1 ? 's' : ''}</td>
+      <td><b>₹${o.total?.toFixed(2)}</b></td>
+      <td>${o.payment_method || 'COD'}</td>
+      <td style="font-size:0.82rem;">${date}</td>
+      <td>
+        <select class="status-select" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:0.8rem;" onchange="updateStatus('${o.order_id}',this.value)">
+          ${['Pending','Processing','Shipped','Delivered','Cancelled','Cancel Requested'].map(s => `<option ${o.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </td>
+      <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <button class="btn-sm btn-blue" onclick="viewOrder('${o.order_id}')"><i class="fas fa-eye"></i></button>
+        ${isDeletable ? `<button class="btn-sm" style="background:#fff0f0;color:#ef4444;border:1px solid #fca5a5;" onclick="openDeleteOrderModal('${o.order_id}')"><i class="fas fa-trash"></i></button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function updateStatus(orderId, status) {
+  try {
+    await fetch(`/api/orders/${orderId}`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ status })
+    });
+    showToast('Status updated!', 'success');
+    loadOrders();
+  } catch(e) { showToast('Failed to update', 'error'); }
+}
+
+function viewOrder(orderId) {
+  const order = allOrders.find(o => o.order_id === orderId);
+  if (!order) return;
+  const date = order.created_at?.$date ? new Date(order.created_at.$date).toLocaleString('en-IN') : '-';
+  const items = (order.items || []).map(item => `
+    <tr>
+      <td><img src="${item.image||'/static/images/logo.png'}" style="width:36px;height:36px;object-fit:contain;border-radius:4px;background:#f3f4f6;" onerror="this.src='/static/images/logo.png'"></td>
+      <td>${item.name}</td>
+      <td>${item.qty}</td>
+      <td>₹${item.price?.toFixed(2)}</td>
+      <td><b>₹${(item.price*item.qty).toFixed(2)}</b></td>
+    </tr>`).join('');
+
+  const cancelBlock = order.cancel_reason ? `
+    <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+      <b style="color:#f97316;"><i class="fas fa-exclamation-circle"></i> Customer Cancellation Request</b>
+      <p style="margin:6px 0 0;color:#92400e;font-size:0.88rem;">Reason: <b>${order.cancel_reason}</b></p>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button onclick="updateStatus('${order.order_id}','Cancelled');closeOrderModal();" style="padding:7px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;"><i class="fas fa-check"></i> Accept Cancellation</button>
+        <button onclick="updateStatus('${order.order_id}','Processing');closeOrderModal();" style="padding:7px 16px;background:#fff;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;"><i class="fas fa-times"></i> Reject & Continue</button>
+      </div>
+    </div>` : '';
+
+  document.getElementById('orderDetailContent').innerHTML = `
+    ${cancelBlock}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+      <div>
+        <h4 style="margin-bottom:8px;color:var(--text-muted);font-size:0.82rem;text-transform:uppercase;">Order Info</h4>
+        <p><b>Order ID:</b> ${order.order_id}</p>
+        <p><b>Date:</b> ${date}</p>
+        <p><b>Status:</b> <span class="status-badge ${(order.status||'').toLowerCase()}">${order.status}</span></p>
+        <p><b>Payment:</b> ${order.payment_method}</p>
+      </div>
+      <div>
+        <h4 style="margin-bottom:8px;color:var(--text-muted);font-size:0.82rem;text-transform:uppercase;">Customer</h4>
+        <p><b>${order.customer?.name}</b></p>
+        <p>${order.customer?.phone}</p>
+        <p>${order.customer?.email || ''}</p>
+        <p>${order.customer?.address}, ${order.customer?.city}, ${order.customer?.pincode}</p>
+      </div>
+    </div>
+    <h4 style="margin-bottom:12px;">Items Ordered</h4>
+    <table style="width:100%;margin-bottom:16px;">
+      <thead><tr><th style="width:48px;"></th><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+      <tbody>${items}</tbody>
+    </table>
+    <div style="text-align:right;">
+      <div style="font-size:1.2rem;font-weight:800;color:var(--blue);">Total: ₹${order.total?.toFixed(2)}</div>
+    </div>`;
+  document.getElementById('orderDetailModal').classList.add('open');
+}
+
+function closeOrderModal() {
+  document.getElementById('orderDetailModal').classList.remove('open');
+}
+
+function openDeleteOrderModal(orderId) {
+  deleteTargetOrderId = orderId;
+  document.getElementById('deleteOrderId').textContent = orderId;
+  document.getElementById('deleteOrderModal').classList.add('open');
+}
+
+function closeDeleteOrderModal() {
+  document.getElementById('deleteOrderModal').classList.remove('open');
+  deleteTargetOrderId = null;
+}
+
+async function confirmDeleteOrder() {
+  if (!deleteTargetOrderId) return;
+  try {
+    const res = await fetch(`/api/orders/${deleteTargetOrderId}/delete`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Order deleted', 'success');
+      closeDeleteOrderModal();
+      loadOrders();
+    } else {
+      showToast(data.error || 'Failed to delete', 'error');
+    }
+  } catch(e) { showToast('Server error', 'error'); }
+}
+
+loadOrders();
+</script>
+{% endblock %}

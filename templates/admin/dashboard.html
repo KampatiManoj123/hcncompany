@@ -1,0 +1,115 @@
+{% extends 'admin/base.html' %}
+{% block title %}Dashboard - HCN Admin{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="stats-grid" id="statsGrid">
+  <div class="stat-card"><h4>Total Products</h4><div class="value" id="s-products">-</div><div class="sub">In catalog</div></div>
+  <div class="stat-card green"><h4>Total Orders</h4><div class="value" id="s-orders">-</div><div class="sub">All time</div></div>
+  <div class="stat-card orange"><h4>Pending Orders</h4><div class="value" id="s-pending">-</div><div class="sub">Needs attention</div></div>
+  <div class="stat-card purple"><h4>Total Revenue</h4><div class="value" id="s-revenue">-</div><div class="sub">From orders</div></div>
+  <div class="stat-card" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-color:#86efac;"><h4 style="color:#16a34a;">Dist. Requests</h4><div class="value" id="s-distributors" style="color:#16a34a;">-</div><div class="sub"><a href="/admin/distributors" style="color:#16a34a;">View all</a></div></div>
+  <div class="stat-card" style="background:linear-gradient(135deg,#f0f4ff,#dbeafe);border-color:#93c5fd;"><h4 style="color:#1d4ed8;">Registered Users</h4><div class="value" id="s-users" style="color:#1d4ed8;">-</div><div class="sub"><a href="/admin/users" style="color:#1d4ed8;">View all</a></div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+  <!-- Recent Orders -->
+  <div class="card">
+    <div class="card-header">
+      <h3><i class="fas fa-shopping-bag" style="color:var(--blue);"></i> Recent Orders</h3>
+      <a href="/admin/orders" class="btn-sm btn-blue">View All</a>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody id="recentOrders"><tr><td colspan="4" style="text-align:center;padding:28px;color:#999;">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Distributor Requests -->
+  <div class="card">
+    <div class="card-header">
+      <h3><i class="fas fa-store" style="color:var(--green);"></i> New Distributor Requests</h3>
+      <a href="/admin/distributors" class="btn-sm" style="background:var(--green);color:#fff;">View All</a>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Shop Name</th><th>City</th><th>Phone</th><th>Status</th></tr></thead>
+        <tbody id="recentDistributors"><tr><td colspan="4" style="text-align:center;padding:28px;color:#999;">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card">
+  <div class="card-header"><h3><i class="fas fa-bolt" style="color:var(--orange);"></i> Quick Actions</h3></div>
+  <div style="padding:20px;display:flex;gap:12px;flex-wrap:wrap;">
+    <a href="/admin/products" class="btn-primary"><i class="fas fa-plus"></i> Add New Product</a>
+    <a href="/admin/billing" class="btn-green" style="background:var(--green);color:#fff;padding:10px 22px;border-radius:8px;font-size:0.88rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;"><i class="fas fa-receipt"></i> Create New Bill</a>
+    <a href="/admin/orders" class="btn-outline"><i class="fas fa-list"></i> Manage Orders</a>
+    <a href="/admin/distributors" class="btn-outline" style="color:var(--green);border-color:var(--green);"><i class="fas fa-store"></i> Distributor Requests</a>
+    <a href="/admin/users" class="btn-outline"><i class="fas fa-users"></i> Manage Users</a>
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+async function loadStats() {
+  try {
+    const res = await fetch('/api/stats');
+    const s = await res.json();
+    document.getElementById('s-products').textContent = s.products;
+    document.getElementById('s-orders').textContent = s.orders;
+    document.getElementById('s-pending').textContent = s.pending;
+    document.getElementById('s-revenue').textContent = '₹' + s.revenue.toFixed(2);
+    document.getElementById('s-distributors').textContent = s.distributors + ' pending';
+    document.getElementById('s-users').textContent = s.users;
+  } catch(e) {}
+}
+
+async function loadRecentOrders() {
+  try {
+    const res = await fetch('/api/orders');
+    const orders = await res.json();
+    const tbody = document.getElementById('recentOrders');
+    if (!orders.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:28px;color:#999;">No orders yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = orders.slice(0,6).map(o => `
+      <tr>
+        <td><b style="color:var(--blue);">${o.order_id}</b></td>
+        <td>${o.customer?.name || '-'}</td>
+        <td><b>₹${o.total?.toFixed(2)}</b></td>
+        <td><span class="status-badge ${(o.status||'').toLowerCase()}">${o.status}</span></td>
+      </tr>`).join('');
+  } catch(e) {}
+}
+
+async function loadRecentDistributors() {
+  try {
+    const res = await fetch('/api/distributors');
+    const apps = await res.json();
+    const tbody = document.getElementById('recentDistributors');
+    if (!apps.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:28px;color:#999;">No applications yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = apps.slice(0,5).map(a => `
+      <tr>
+        <td><b>${a.shop_name}</b></td>
+        <td>${a.city}</td>
+        <td><a href="tel:${a.phone}">${a.phone}</a></td>
+        <td><span class="status-badge ${(a.status||'').toLowerCase()}">${a.status}</span></td>
+      </tr>`).join('');
+  } catch(e) {}
+}
+
+loadStats();
+loadRecentOrders();
+loadRecentDistributors();
+</script>
+{% endblock %}

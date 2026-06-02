@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}My Account - HCN{% endblock %}
+{% block content %}
+<div class="account-page">
+  <div class="account-sidebar">
+    <div class="account-user-info" id="userInfoBox">
+      <div class="account-avatar"><i class="fas fa-user-circle"></i></div>
+      <h3 id="accName">Loading...</h3>
+      <p id="accEmail"></p>
+    </div>
+    <nav class="account-nav">
+      <a href="/account" class="active"><i class="fas fa-home"></i> Dashboard</a>
+      <a href="/account/orders"><i class="fas fa-box"></i> My Orders</a>
+      <a href="/account/profile"><i class="fas fa-user-edit"></i> Edit Profile</a>
+      <a href="/logout" style="color:#ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    </nav>
+  </div>
+  <div class="account-main">
+    <h2>Welcome back, <span id="greetName" class="text-green">...</span>!</h2>
+    <p style="color:#6b7280;margin-bottom:28px;">Manage your orders, profile and account settings below.</p>
+
+    <!-- Stats -->
+    <div class="acc-stats-row" id="accStats">
+      <div class="acc-stat-card"><i class="fas fa-box"></i><div><h4 id="totalOrders">-</h4><p>Total Orders</p></div></div>
+      <div class="acc-stat-card"><i class="fas fa-clock" style="color:#f97316;"></i><div><h4 id="pendingOrders">-</h4><p>Pending</p></div></div>
+      <div class="acc-stat-card"><i class="fas fa-check-circle" style="color:#22c55e;"></i><div><h4 id="deliveredOrders">-</h4><p>Delivered</p></div></div>
+    </div>
+
+    <!-- Recent Orders -->
+    <div class="acc-section">
+      <div class="acc-section-header">
+        <h3><i class="fas fa-shopping-bag"></i> Recent Orders</h3>
+        <a href="/account/orders" class="view-all">View All</a>
+      </div>
+      <div id="recentOrdersList"><div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i></div></div>
+    </div>
+
+    <!-- Activity -->
+    <div class="acc-section">
+      <div class="acc-section-header">
+        <h3><i class="fas fa-history"></i> Recent Activity</h3>
+        <button onclick="clearAllActivity()" class="btn-outline" style="padding:5px 14px;font-size:0.8rem;color:#ef4444;border-color:#fca5a5;" id="clearActivityBtn" style="display:none;">
+          <i class="fas fa-trash"></i> Clear All
+        </button>
+      </div>
+      <div id="activityList"><div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i></div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function loadAccount() {
+  try {
+    const [userRes, ordersRes, actRes] = await Promise.all([
+      fetch('/api/user/me'), fetch('/api/user/orders'), fetch('/api/user/activity')
+    ]);
+    const user = await userRes.json();
+    const orders = await ordersRes.json();
+    const activity = await actRes.json();
+
+    document.getElementById('accName').textContent = user.name || '';
+    document.getElementById('accEmail').textContent = user.email || '';
+    document.getElementById('greetName').textContent = (user.name || '').split(' ')[0];
+
+    const pending = orders.filter(o => o.status === 'Pending').length;
+    const delivered = orders.filter(o => o.status === 'Delivered').length;
+    document.getElementById('totalOrders').textContent = orders.length;
+    document.getElementById('pendingOrders').textContent = pending;
+    document.getElementById('deliveredOrders').textContent = delivered;
+
+    // Recent Orders
+    const oList = document.getElementById('recentOrdersList');
+    if (!orders.length) {
+      oList.innerHTML = '<p class="empty-state"><i class="fas fa-box-open"></i><br>No orders yet. <a href="/products">Start shopping!</a></p>';
+    } else {
+      oList.innerHTML = `<div class="orders-table-wrap"><table class="orders-table">
+        <thead><tr><th>Order ID</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody>${orders.slice(0,5).map(o => `
+          <tr>
+            <td><b style="color:var(--blue);">${o.order_id}</b></td>
+            <td>${new Date(o.created_at?.$date || o.created_at).toLocaleDateString('en-IN')}</td>
+            <td>${(o.items||[]).length} item(s)</td>
+            <td><b>₹${(o.total||0).toFixed(2)}</b></td>
+            <td><span class="status-pill ${(o.status||'').toLowerCase()}">${o.status}</span></td>
+          </tr>`).join('')}
+        </tbody></table></div>`;
+    }
+
+    // Activity
+    const aList = document.getElementById('activityList');
+    if (!activity.length) {
+      aList.innerHTML = '<p class="empty-state">No recent activity.</p>';
+      document.getElementById('clearActivityBtn').style.display = 'none';
+    } else {
+      document.getElementById('clearActivityBtn').style.display = '';
+      aList.innerHTML = `<ul class="activity-list">${activity.map(a => {
+        const aid = a._id?.$oid || a._id;
+        return `<li>
+          <i class="fas fa-circle-dot"></i>
+          <div style="flex:1;"><span>${a.details}</span><small>${new Date(a.created_at?.$date || a.created_at).toLocaleString('en-IN')}</small></div>
+          <button onclick="deleteActivity('${aid}', this)" style="background:none;border:none;color:#d1d5db;cursor:pointer;padding:4px 8px;border-radius:6px;font-size:0.8rem;" title="Remove"><i class="fas fa-times"></i></button>
+        </li>`;
+      }).join('')}</ul>`;
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function deleteActivity(id, btn) {
+  try {
+    await fetch(`/api/user/activity/${id}`, { method: 'DELETE' });
+    const li = btn.closest('li');
+    if (li) li.remove();
+    const ul = document.querySelector('.activity-list');
+    if (ul && !ul.children.length) {
+      document.getElementById('activityList').innerHTML = '<p class="empty-state">No recent activity.</p>';
+      document.getElementById('clearActivityBtn').style.display = 'none';
+    }
+  } catch(e) { showToast('Failed to delete', 'error'); }
+}
+
+async function clearAllActivity() {
+  if (!confirm('Clear all activity history?')) return;
+  try {
+    await fetch('/api/user/activity/clear', { method: 'DELETE' });
+    document.getElementById('activityList').innerHTML = '<p class="empty-state">No recent activity.</p>';
+    document.getElementById('clearActivityBtn').style.display = 'none';
+    showToast('Activity cleared', 'success');
+  } catch(e) { showToast('Failed', 'error'); }
+}
+loadAccount();
+</script>
+{% endblock %}

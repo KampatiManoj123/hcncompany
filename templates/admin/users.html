@@ -1,0 +1,97 @@
+{% extends 'admin/base.html' %}
+{% block title %}Users - HCN Admin{% endblock %}
+{% block page_title %}Registered Users{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h3><i class="fas fa-users" style="color:var(--blue);"></i> Registered Users</h3>
+    <span id="userCount" style="background:var(--blue-light);color:var(--blue);padding:4px 12px;border-radius:20px;font-size:0.82rem;font-weight:700;"></span>
+  </div>
+  <div style="overflow-x:auto;">
+    <table>
+      <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Registered</th><th>Action</th></tr></thead>
+      <tbody id="usersTable"><tr><td colspan="6" style="text-align:center;padding:40px;color:#999;">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="admin-modal-overlay" id="deleteUserModal">
+  <div class="admin-modal" style="max-width:420px;">
+    <div class="admin-modal-header">
+      <h3><i class="fas fa-trash" style="color:#ef4444;"></i> Delete User</h3>
+      <button onclick="closeDeleteModal()" style="background:var(--gray-light);border:none;padding:6px 12px;border-radius:6px;cursor:pointer;"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin-bottom:8px;">Are you sure you want to delete this user?</p>
+      <p id="deleteUserName" style="font-weight:700;color:#ef4444;font-size:1rem;margin-bottom:20px;"></p>
+      <p style="font-size:0.84rem;color:#6b7280;margin-bottom:20px;">This will permanently remove the user account. Their orders will remain in the system.</p>
+      <div style="display:flex;gap:12px;">
+        <button onclick="closeDeleteModal()" style="flex:1;padding:12px;border:1.5px solid var(--border);background:#fff;border-radius:8px;cursor:pointer;font-weight:600;">Cancel</button>
+        <button onclick="confirmDeleteUser()" style="flex:1;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;"><i class="fas fa-trash"></i> Delete User</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+let deleteUserId = null;
+
+function openDeleteModal(userId, userName) {
+  deleteUserId = userId;
+  document.getElementById('deleteUserName').textContent = userName;
+  document.getElementById('deleteUserModal').classList.add('open');
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteUserModal').classList.remove('open');
+  deleteUserId = null;
+}
+
+async function confirmDeleteUser() {
+  if (!deleteUserId) return;
+  try {
+    const res = await fetch(`/api/admin/users/${deleteUserId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showToast('User deleted successfully', 'success');
+      closeDeleteModal();
+      loadUsers();
+    } else {
+      showToast(data.error || 'Failed to delete', 'error');
+    }
+  } catch(e) { showToast('Server error', 'error'); }
+}
+
+async function loadUsers() {
+  const res = await fetch('/api/admin/users');
+  const users = await res.json();
+  document.getElementById('userCount').textContent = users.length + ' users';
+  const tbody = document.getElementById('usersTable');
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#999;">No users registered yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map((u,i) => {
+    const uid = u._id?.$oid || u._id;
+    return `
+    <tr>
+      <td>${i+1}</td>
+      <td><b>${u.name}</b></td>
+      <td><a href="mailto:${u.email}">${u.email}</a></td>
+      <td>${u.phone||'-'}</td>
+      <td>${new Date(u.created_at?.$date||u.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</td>
+      <td>
+        <button onclick="openDeleteModal('${uid}','${u.name.replace(/'/g,"\\'")} (${u.email})')" 
+          style="background:#fff0f0;color:#ef4444;border:1.5px solid #fca5a5;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;">
+          <i class="fas fa-trash"></i> Delete
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+loadUsers();
+</script>
+{% endblock %}
